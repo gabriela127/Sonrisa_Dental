@@ -1,0 +1,259 @@
+
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión | Sonrisa Dental</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+
+  <style>
+    .login-page {
+      min-height: calc(100vh - 130px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .login-card {
+      width: 100%;
+      max-width: 430px;
+      padding: 36px;
+      background: #fff;
+      border: 1px solid #e4e9ef;
+      border-radius: 20px;
+      box-shadow: 0 16px 45px rgba(20, 54, 75, 0.10);
+    }
+
+    .login-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 18px;
+      background: #e4f5f2;
+      color: #087f72;
+      font-size: 32px;
+    }
+
+    .login-card h1 {
+      margin: 0;
+      text-align: center;
+      font-size: 28px;
+    }
+
+    .login-description {
+      margin: 12px 0 28px;
+      color: #657582;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .login-form label {
+      margin-top: 10px;
+      font-weight: 600;
+      color: #243746;
+    }
+
+    .login-form input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 13px 14px;
+      border: 1px solid #ccd6df;
+      border-radius: 10px;
+      font: inherit;
+      outline: none;
+    }
+
+    .login-form input:focus {
+      border-color: #078477;
+      box-shadow: 0 0 0 3px rgba(7, 132, 119, 0.12);
+    }
+
+    .login-submit {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #087f72;
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .login-submit:hover {
+      background: #06685e;
+    }
+
+    .login-submit:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
+    .login-message {
+      display: none;
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 9px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .login-message.error {
+      display: block;
+      color: #9c2525;
+      background: #fff0f0;
+    }
+
+    .login-message.success {
+      display: block;
+      color: #126b43;
+      background: #eaf8ef;
+    }
+
+    .login-help {
+      margin-top: 22px;
+      color: #657582;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+    }
+
+    @media (max-width: 480px) {
+      .login-card {
+        padding: 26px 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-icon" aria-hidden="true">✚</span>
+      <span>Sonrisa <strong>Dental</strong></span>
+    </a>
+    <span class="topbar-label">Sistema de gestión</span>
+  </header>
+
+  <main class="login-page">
+    <section class="login-card">
+      <div class="login-icon" aria-hidden="true">✦</div>
+
+      <p class="eyebrow" style="text-align: center;">BIENVENIDO/A</p>
+      <h1>Iniciar sesión</h1>
+
+      <p class="login-description">
+        Ingresa tus credenciales para acceder al sistema del consultorio dental.
+      </p>
+
+      <form id="login-form" class="login-form">
+        <label for="correo">Correo electrónico</label>
+        <input
+          id="correo"
+          name="correo"
+          type="email"
+          placeholder="usuario@correo.com"
+          autocomplete="username"
+          required
+        >
+
+        <label for="contrasena">Contraseña</label>
+        <input
+          id="contrasena"
+          name="contrasena"
+          type="password"
+          placeholder="Ingresa tu contraseña"
+          autocomplete="current-password"
+          required
+        >
+
+        <button id="login-submit" class="login-submit" type="submit">
+          Ingresar al sistema
+        </button>
+
+        <div
+          id="login-message"
+          class="login-message"
+          role="alert"
+          aria-live="polite"
+        ></div>
+      </form>
+
+      <p class="login-help">
+        Si todavía no tienes una cuenta, solicita al administrador del sistema
+        que configure tu acceso.
+      </p>
+    </section>
+  </main>
+
+  <footer>Proyecto académico · Sistema de gestión de consultorio dental</footer>
+
+  <script>
+    const loginForm = document.getElementById("login-form");
+    const loginMessage = document.getElementById("login-message");
+    const loginButton = document.getElementById("login-submit");
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      loginMessage.textContent = "";
+      loginMessage.className = "login-message";
+      loginButton.disabled = true;
+      loginButton.textContent = "Verificando...";
+
+      const correo = document.getElementById("correo").value.trim();
+      const contrasena = document.getElementById("contrasena").value;
+
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ correo, contrasena })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.mensaje || "No se pudo iniciar sesión."
+          );
+        }
+
+        loginMessage.textContent =
+          data.mensaje || "Inicio de sesión correcto.";
+        loginMessage.className = "login-message success";
+
+        window.location.assign(data.redireccion || "/panel");
+
+      } catch (error) {
+        loginMessage.textContent =
+          error.message || "No fue posible conectar con el servidor.";
+        loginMessage.className = "login-message error";
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = "Ingresar al sistema";
+      }
+    });
+  </script>
+</body>
+</html>

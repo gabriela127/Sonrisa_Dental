@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Panel principal | Sonrisa Dental</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <style>
+    .module-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
+    .module-card{display:flex;flex-direction:column;align-items:flex-start;min-height:220px}
+    .module-card p{flex:1}
+    .action-button,.module-button{border:0;border-radius:9px;padding:10px 14px;background:var(--teal);color:white;font-weight:700;cursor:pointer;font:inherit}
+    .action-button:hover,.module-button:hover{background:var(--teal-dark)}
+    .action-button.secondary{background:#e7f0f1;color:var(--ink)}
+    .action-button.danger{background:#a93434}
+    .action-button:disabled{opacity:.55;cursor:not-allowed}
+    .module-panel{margin:14px 0 40px;padding:24px;background:white;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+    .module-panel[hidden]{display:none}
+    .module-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:16px 0}
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+    .form-field{display:flex;flex-direction:column;gap:6px}
+    .form-field label{font-weight:650;font-size:13px}
+    .form-field input,.form-field select{width:100%;padding:10px 12px;border:1px solid #cbd9dc;border-radius:9px;font:inherit;background:white}
+    .form-field small{color:var(--muted);font-size:11px}
+    .form-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+    .notice{padding:10px 12px;border-radius:9px;background:#edf7f4;color:#245b4b}
+    .notice.error{background:#fff0f0;color:#9c2525}
+    .table-wrap{overflow:auto;border:1px solid var(--line);border-radius:10px}
+    table{border-collapse:collapse;width:100%;background:white;font-size:13px}
+    th,td{padding:10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;max-width:260px;overflow-wrap:anywhere}
+    th{background:#f0f7f6;white-space:nowrap}
+    td .row-actions{display:flex;gap:6px;flex-wrap:wrap}
+    td .row-actions button{padding:6px 8px;font-size:12px}
+    .empty-row{text-align:center;color:var(--muted);padding:24px}
+    .subtle{color:var(--muted);font-size:13px;line-height:1.6}
+    @media(max-width:520px){.module-panel{padding:15px}.module-toolbar{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/panel"><span class="brand-icon" aria-hidden="true">✚</span><span>Sonrisa <strong>Dental</strong></span></a>
+  <button id="logout-button" class="primary-button" type="button">Cerrar sesión</button>
+</header>
+<main class="container">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">PANEL PRINCIPAL</p>
+      <h1>¡Bienvenido/a a Sonrisa Dental!</h1>
+      <p class="intro">Sistema de gestión para pacientes, citas, tratamientos y cobros.</p>
+      <p id="user-info" aria-live="polite">Cargando información del usuario...</p>
+      <p id="panel-message" role="alert" aria-live="polite"></p>
+    </div>
+    <div class="hero-art" aria-hidden="true"><div class="tooth">✦</div><div class="art-caption">Cuidamos cada detalle</div></div>
+  </section>
+
+  <section class="modules-section">
+    <div class="section-heading"><div><p class="eyebrow">GESTIÓN DEL CONSULTORIO</p><h2>Módulos del sistema</h2></div></div>
+    <div id="module-grid" class="module-grid">
+      <article class="module-card"><p>Cargando módulos...</p></article>
+    </div>
+  </section>
+
+  <section id="module-panel" class="module-panel" hidden>
+    <div class="module-toolbar">
+      <div><p class="eyebrow" style="color:var(--teal);margin-bottom:6px">ADMINISTRACIÓN DE DATOS</p><h2 id="module-title">Módulo</h2></div>
+      <button id="close-module" type="button" class="action-button secondary">Volver al panel</button>
+    </div>
+    <p class="subtle">Los campos se obtienen de las columnas y relaciones que ya existen en tu base de datos. No se crean ni modifican tablas.</p>
+    <p id="module-message" class="notice" role="status" aria-live="polite"></p>
+    <div class="module-toolbar">
+      <h3 id="form-title">Registrar nuevo</h3>
+      <button id="new-record" type="button" class="action-button">+ Nuevo registro</button>
+    </div>
+    <form id="record-form" hidden>
+      <div id="form-fields" class="form-grid"></div>
+      <div class="form-actions">
+        <button class="action-button" type="submit">Guardar</button>
+        <button id="cancel-edit" class="action-button secondary" type="button">Cancelar</button>
+      </div>
+    </form>
+    <div class="module-toolbar"><h3>Registros</h3><button id="refresh-records" class="action-button secondary" type="button">Actualizar lista</button></div>
+    <div class="table-wrap"><table id="records-table"><thead></thead><tbody></tbody></table></div>
+  </section>
+</main>
+<footer>Proyecto académico · Sistema de gestión de consultorio dental</footer>
+<script>
+const userInfo = document.getElementById("user-info");
+const panelMessage = document.getElementById("panel-message");
+const moduleGrid = document.getElementById("module-grid");
+const modulePanel = document.getElementById("module-panel");
+const moduleTitle = document.getElementById("module-title");
+const moduleMessage = document.getElementById("module-message");
+const recordForm = document.getElementById("record-form");
+const formFields = document.getElementById("form-fields");
+const formTitle = document.getElementById("form-title");
+const recordsTable = document.getElementById("records-table");
+let activeModule = null;
+let activeLabel = "";
+let schema = null;
+let records = [];
+let editingPk = null;
+
+const icons = {
+  pacientes:["♙","patients","Registro y consulta de pacientes."],
+  citas:["▦","appointments","Programación y seguimiento de citas."],
+  tratamientos:["✧","treatments","Catálogo de tratamientos dentales."],
+  facturas:["$","billing","Facturas y cobros del consultorio."],
+  pagos:["✓","billing","Registro y consulta de pagos."],
+  detalle_factura:["≡","billing","Conceptos incluidos en cada factura."],
+  tratamientos_realizados:["✚","treatments","Tratamientos aplicados a pacientes."],
+  usuarios:["♙","patients","Cuentas y permisos de acceso."]
+};
+
+function showMessage(text, error=false){
+  moduleMessage.textContent = text || "";
+  moduleMessage.className = error ? "notice error" : "notice";
+}
+async function requestJson(url, options={}){
+  const response = await fetch(url, {
+    credentials:"same-origin",
+    headers:{"Accept":"application/json","Content-Type":"application/json", ...(options.headers||{})},
+    ...options
+  });
+  const data = await response.json().catch(()=>({mensaje:"El servidor devolvió una respuesta no válida."}));
+  if(response.status===401){window.location.replace("/");throw new Error("Tu sesión expiró.");}
+  if(!response.ok)throw new Error(data.mensaje||"No se pudo completar la operación.");
+  return data;
+}
+async function loadUser(){
+  try{
+    const user=await requestJson("/api/auth/me");
+    userInfo.textContent=`Usuario: ${user.nombre} | Rol: ${user.rol}`;
+  }catch(error){panelMessage.textContent=error.message;}
+}
+async function loadModules(){
+  try{
+    const data=await requestJson("/api/modulos");
+    moduleGrid.replaceChildren();
+    for(const item of data.modulos){
+      const visual=icons[item.id]||["•","patients","Administración del módulo."];
+      const article=document.createElement("article");article.className="module-card";
+      const icon=document.createElement("div");icon.className="module-icon "+visual[1];icon.textContent=visual[0];
+      const title=document.createElement("h3");title.textContent=item.nombre;
+      const desc=document.createElement("p");desc.textContent=visual[2];
+      const state=document.createElement("span");state.className="module-state";state.textContent="Disponible";
+      const button=document.createElement("button");button.type="button";button.className="module-button";button.textContent="Abrir módulo";
+      button.addEventListener("click",()=>openModule(item.id,item.nombre));
+      article.append(icon,title,desc,state,button);moduleGrid.appendChild(article);
+    }
+  }catch(error){moduleGrid.textContent=error.message;}
+}
+function primaryValues(row){
+  const values={};
+  for(const key of (schema?.primary_key||[]))values[key]=row[key];
+  return values;
+}
+function formatCell(value){
+  if(value===null||value===undefined||value==="")return "—";
+  if(typeof value==="object")return JSON.stringify(value);
+  return String(value);
+}
+function renderTable(){
+  recordsTable.replaceChildren();
+  const thead=document.createElement("thead"),headRow=document.createElement("tr");
+  for(const col of schema.columns){const th=document.createElement("th");th.textContent=col.replaceAll("_"," ");headRow.appendChild(th);}
+  const actionHead=document.createElement("th");actionHead.textContent="Acciones";headRow.appendChild(actionHead);thead.appendChild(headRow);
+  const tbody=document.createElement("tbody");
+  if(!records.length){const tr=document.createElement("tr"),td=document.createElement("td");td.colSpan=schema.columns.length+1;td.className="empty-row";td.textContent="Todavía no hay registros. Puedes crear el primero con “Nuevo registro”.";tr.appendChild(td);tbody.appendChild(tr);}
+  for(const row of records){
+    const tr=document.createElement("tr");
+    for(const col of schema.columns){const td=document.createElement("td");td.textContent=formatCell(row[col]);tr.appendChild(td);}
+    const actions=document.createElement("td"),wrap=document.createElement("div");wrap.className="row-actions";
+    const edit=document.createElement("button");edit.type="button";edit.className="action-button secondary";edit.textContent="Editar";edit.addEventListener("click",()=>beginEdit(row));
+    const del=document.createElement("button");del.type="button";del.className="action-button danger";del.textContent=(schema.has_active?"Desactivar":"Eliminar");
+    del.addEventListener("click",()=>deleteRow(row));
+    wrap.append(edit,del);actions.appendChild(wrap);tr.appendChild(actions);tbody.appendChild(tr);
+  }
+  recordsTable.append(thead,tbody);
+}
+function createField(field, value=undefined){
+  const wrapper=document.createElement("div");wrapper.className="form-field";
+  const label=document.createElement("label");label.htmlFor="field-"+field.name;label.textContent=field.name.replaceAll("_"," ");
+  const required=!field.nullable && field.default===null && !field.auto_increment && !field.primary && field.name!=="contrasena";
+  let input;
+  if(field.foreign_key){
+    input=document.createElement("select");
+    const blank=document.createElement("option");blank.value="";blank.textContent="Selecciona una opción";input.appendChild(blank);
+    for(const optionData of (field.options||[])){
+      const option=document.createElement("option");option.value=optionData.value;option.textContent=optionData.label+" (ID: "+optionData.value+")";input.appendChild(option);
+    }
+  }else{
+    input=document.createElement("input");
+    const type=field.type||"";
+    if(field.name==="contrasena"||type==="password")input.type="password";
+    else if(type.startsWith("date") && type.includes("time"))input.type="datetime-local";
+    else if(type.startsWith("date"))input.type="date";
+    else if(type.includes("int")||type.includes("decimal")||type.includes("float")||type.includes("double"))input.type="number";
+    else if(type.includes("text")||type.includes("char")||type.includes("enum"))input.type="text";
+    else input.type="text";
+    if(input.type==="number")input.step=type.includes("int")?"1":"any";
+    if(type.startsWith("enum(")){
+      const values=[...type.matchAll(/'((?:\\.|[^'])*)'/g)].map(m=>m[1].replaceAll("\\'","'"));
+      if(values.length){const select=document.createElement("select");const blank=document.createElement("option");blank.value="";blank.textContent="Selecciona una opción";select.appendChild(blank);for(const val of values){const opt=document.createElement("option");opt.value=val;opt.textContent=val;select.appendChild(opt);}input=select;}
+    }
+  }
+  input.id="field-"+field.name;input.name=field.name;input.required=required;
+  if(field.name==="contrasena"){input.required=!editingPk;input.autocomplete="new-password";input.placeholder=editingPk?"Dejar vacío para conservar la contraseña":"Mínimo 10 caracteres";}
+  if(value!==undefined && value!==null)input.value=String(value);
+  if(field.foreign_key && value!==undefined && value!==null)input.value=String(value);
+  wrapper.append(label,input);
+  if(field.foreign_key){const small=document.createElement("small");small.textContent="Relación con "+field.foreign_key.table;wrapper.appendChild(small);}
+  return wrapper;
+}
+function drawForm(row=null){
+  formFields.replaceChildren();
+  for(const field of schema.fields){
+    // Password is intentionally blank when editing; existing hashes are never exposed.
+    const value=field.name==="contrasena"?undefined:(row?row[field.name]:undefined);
+    formFields.appendChild(createField(field,value));
+  }
+  recordForm.hidden=false;
+  formTitle.textContent=row?"Editar registro":"Registrar nuevo";
+  document.getElementById("new-record").hidden=true;
+}
+function beginEdit(row){
+  if(!schema.primary_key.length){showMessage("Esta tabla no tiene clave primaria; no se puede editar de forma segura.",true);return;}
+  if(schema.primary_key.length>1){showMessage("La tabla usa una clave primaria compuesta; la edición automática no está disponible.",true);return;}
+  editingPk=primaryValues(row);drawForm(row);showMessage("Editando registro. Los campos de contraseña permanecen vacíos por seguridad.");
+  recordForm.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function beginCreate(){
+  editingPk=null;drawForm();showMessage("Completa los campos para registrar el nuevo elemento.");
+  recordForm.scrollIntoView({behavior:"smooth",block:"center"});
+}
+function cancelForm(){
+  recordForm.reset();recordForm.hidden=true;formFields.replaceChildren();editingPk=null;document.getElementById("new-record").hidden=false;formTitle.textContent="Registrar nuevo";
+}
+async function openModule(id,label){
+  activeModule=id;activeLabel=label;moduleTitle.textContent=label;modulePanel.hidden=false;showMessage("Cargando estructura y registros...");
+  cancelForm();
+  modulePanel.scrollIntoView({behavior:"smooth",block:"start"});
+  await refreshRecords();
+}
+async function refreshRecords(){
+  if(!activeModule)return;
+  try{
+    const data=await requestJson("/api/modulos/"+encodeURIComponent(activeModule));
+    schema=data.esquema;records=data.registros||[];
+    renderTable();showMessage(records.length+" registro(s) cargado(s).");
+  }catch(error){showMessage(error.message,true);recordsTable.replaceChildren();}
+}
+async function deleteRow(row){
+  const action=schema.has_active?"desactivar":"eliminar";
+  if(!confirm(`¿Seguro que deseas ${action} este registro de ${activeLabel}?`))return;
+  try{
+    const result=await requestJson("/api/modulos/"+encodeURIComponent(activeModule),{
+      method:"DELETE",body:JSON.stringify({pk:primaryValues(row)})
+    });
+    showMessage(result.mensaje);await refreshRecords();
+  }catch(error){showMessage(error.message,true);}
+}
+recordForm.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const datos={};
+  for(const [key,value] of new FormData(recordForm).entries())datos[key]=value;
+  try{
+    let result;
+    if(editingPk){
+      result=await requestJson("/api/modulos/"+encodeURIComponent(activeModule),{
+        method:"PUT",body:JSON.stringify({pk:editingPk,datos})
+      });
+    }else{
+      result=await requestJson("/api/modulos/"+encodeURIComponent(activeModule),{
+        method:"POST",body:JSON.stringify(datos)
+      });
+    }
+    cancelForm();showMessage(result.mensaje);await refreshRecords();
+  }catch(error){showMessage(error.message,true);}
+});
+document.getElementById("new-record").addEventListener("click",beginCreate);
+document.getElementById("cancel-edit").addEventListener("click",()=>{cancelForm();showMessage("Operación cancelada.");});
+document.getElementById("refresh-records").addEventListener("click",refreshRecords);
+document.getElementById("close-module").addEventListener("click",()=>{modulePanel.hidden=true;cancelForm();activeModule=null;});
+document.getElementById("logout-button").addEventListener("click",async()=>{
+  const button=document.getElementById("logout-button");button.disabled=true;button.textContent="Cerrando sesión...";
+  try{await requestJson("/api/auth/logout",{method:"POST"});window.location.replace("/");}
+  catch(error){panelMessage.textContent=error.message;button.disabled=false;button.textContent="Cerrar sesión";}
+});
+loadUser();loadModules();
+</script>
+</body>
+</html>
